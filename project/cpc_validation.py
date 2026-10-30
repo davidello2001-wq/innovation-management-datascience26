@@ -1,4 +1,4 @@
-"""Deterministic text screening of CPC prefixes, not official CPC validation.
+"""Descriptive phrase tagging of CPC samples; no relevance decisions or CPC validation.
 
 Only the standard library is required here. PATSTAT access is supplied by TIP.
 """
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-RULE_VERSION = "smart-glasses-screen-v1"
+RULE_VERSION = "smart-glasses-tags-v2"
 PATTERNS = {
     "direct": r"\b(?:smart (?:glasses|eyewear|spectacles)|augmented reality (?:glasses|eyewear)|audio (?:glasses|eyewear))\b",
     "eyewear": r"\b(?:eyeglasses|eyeglass|spectacles|spectacle|eyewear|glasses|near eye|head mounted|head worn)\b",
@@ -22,22 +22,18 @@ PATTERNS = {
 
 
 def screen_text(title, abstract):
-    """Explainable labels: no text or no positive evidence stays uncertain."""
+    """Report literal phrase evidence only; callers supply English text."""
     value = " ".join(str(x) for x in (title, abstract) if x)
     value = re.sub(r"[^a-z0-9]+", " ", value.lower())
     matches = {
         key: sorted({m.group(0) for m in re.finditer(pattern, value)})
         for key, pattern in PATTERNS.items()
     }
-    if not value.strip():
-        label = "NO_ENGLISH_TEXT"
-    elif matches["direct"] or (matches["eyewear"] and matches["function"]):
-        label = "LIKELY_RELEVANT"
-    elif matches["eyewear"]:
-        label = "POSSIBLY_RELEVANT"
-    else:
-        label = "NO_POSITIVE_EVIDENCE"
-    return {"label": label, "audio_theme": bool(matches["audio"]),
+    return {"has_english_text": bool(value.strip()),
+            "direct_phrase_present": bool(matches["direct"]),
+            "eyewear_phrase_present": bool(matches["eyewear"]),
+            "function_phrase_present": bool(matches["function"]),
+            "audio_theme": bool(matches["audio"]),
             "interaction_theme": bool(matches["interaction"]),
             "matched_terms": json.dumps(matches, ensure_ascii=False)}
 
@@ -102,28 +98,17 @@ FROM texts WHERE text_rank = 1 ORDER BY docdb_family_id
 """.strip()
 
 
-def summarize(code, rows, all_codes, minimum_sample=20):
-    readable = [r for r in rows if r["label"] != "NO_ENGLISH_TEXT"]
-    positive = sum(r["label"] == "LIKELY_RELEVANT" for r in readable)
-    rate = positive / len(readable) if readable else None
-    coverage = len(readable) / len(rows) if rows else 0
-    if not rows:
-        decision = "NO_DATA_IN_SELECTED_ENVIRONMENT"
-    elif len(readable) < minimum_sample or coverage < 0.8:
-        decision = "INSUFFICIENT_TEXT_OR_SAMPLE"
-    elif rate >= 0.7:
-        decision = "KEEP_CANDIDATE"
-    elif rate >= 0.3:
-        decision = "REVIEW_MIXED_SCOPE"
-    else:
-        decision = "CONSIDER_NARROWING_WITH_TEXT"
+def summarize(code, rows, all_codes):
+    readable = [r for r in rows if r["has_english_text"]]
     return {
         "cpc_prefix": code,
         "covered_by_listed_prefix": " | ".join(c for c in all_codes if c != code and code.startswith(c)),
         "total_eligible_families": rows[0]["total_eligible_families"] if rows else 0,
         "sampled_families": len(rows), "readable_families": len(readable),
-        "english_text_coverage": coverage, "likely_relevant_families": positive,
-        "heuristic_positive_rate": rate, "recommendation": decision,
+        "english_text_coverage": len(readable) / len(rows) if rows else None,
+        "direct_phrase_families": sum(r["direct_phrase_present"] for r in readable),
+        "eyewear_phrase_families": sum(r["eyewear_phrase_present"] for r in readable),
+        "function_phrase_families": sum(r["function_phrase_present"] for r in readable),
         "audio_theme_families": sum(r["audio_theme"] for r in readable),
         "interaction_theme_families": sum(r["interaction_theme"] for r in readable),
     }
@@ -152,9 +137,7 @@ def run_validation(patstat, codes, *, env, dataset_release, year_min=2000,
     config = dict(env=env, dataset_release=dataset_release, year_min=year_min,
                   year_max=year_max, sample_size=sample_size, seed=seed,
                   codes=codes, rule_version=RULE_VERSION, patterns=PATTERNS,
-                  minimum_readable_sample=20, minimum_coverage=0.8,
-                  keep_threshold=0.7, mixed_threshold=0.3,
-                  note="Text heuristic; not measured precision/recall or official CPC validity.")
+                  note="Descriptive phrase matches only; no relevance labels, scope decisions or official CPC validation.")
     (destination / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     # Save executable rule version as well as parameters.
     (destination / "rules_source.py").write_text(Path(__file__).read_text(), encoding="utf-8")
@@ -171,7 +154,7 @@ def run_validation(patstat, codes, *, env, dataset_release, year_min=2000,
         summary["raw_sha256"] = hashlib.sha256(raw.encode()).hexdigest()
         summaries.append(summary)
         evidence.extend(dict(cpc_prefix=code, **row) for row in classified)
-        print(f"[{index}/{len(codes)}] {code}: {summary['recommendation']}", flush=True)
+        print(f"[{index}/{len(codes)}] {code}: {len(rows)} families tagged", flush=True)
         # Checkpoint completed results so an interrupted run retains evidence.
         write_csv(destination / "cpc_summary.csv", summaries)
         write_csv(destination / "family_evidence.csv", evidence)
