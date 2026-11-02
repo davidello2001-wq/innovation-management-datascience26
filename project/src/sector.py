@@ -35,9 +35,13 @@ def symbol_prefix_condition(symbol_column, codes):
 
 
 def keyword_condition(terms):
-    """OR-condition: any term appears in the title or in the abstract (case-insensitive)."""
-    title = func.lower(TLS202_APPLN_TITLE.appln_title)
-    abstract = func.lower(TLS203_APPLN_ABSTR.appln_abstract)
+    """OR-condition: any term appears in the title or in the abstract (case-insensitive).
+
+    The texts get a leading blank, so a term written with a leading blank
+    (" ar glasses") matches only at the start of a word, also at the start of the text.
+    """
+    title = literal(" ") + func.lower(TLS202_APPLN_TITLE.appln_title)
+    abstract = literal(" ") + func.lower(TLS203_APPLN_ABSTR.appln_abstract)
     return or_(*(col.like(f"%{t.lower()}%") for t in terms for col in (title, abstract)))
 
 

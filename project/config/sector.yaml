@@ -11,6 +11,9 @@
 # accepted directly; rules B and C alone were too noisy (virtual try-on of
 # glasses, 3D glasses, car HUDs, contact lenses...) and go to the semantic
 # filter together with the review codes. exclude_terms apply to that tier only.
+# v0.4: codes and words suggested by 04_expansion on PROD (lift / keyness
+# against all patents), marked "v0.4" below with their sector / all families.
+# No new core code came out: the additions widen rules B, C and review.
 # Numbers in the comments: families 2000-2025 (PROD) and share of them whose
 # title/abstract mentions eyewear ("eye"), from code_diagnostics_PROD.csv.
 
@@ -91,6 +94,17 @@ selection:
     - "H04R2460/13"      # bone conduction hearing devices              2,304 fam, eye 0.05
     # connectivity
     - "H01Q1/273"        # antennas worn on the body                    3,132 fam, eye 0.03
+    # v0.4 from 04_expansion (sector fam / all fam)
+    - "G02B6/0016"       # planar light guides: coupling-in (waveguides)   281 / 2,041
+    - "G02B6/0026"       # planar light guides: wavelength selective          166 / 1,017
+    - "G02B6/0035"       # planar light guides: out-coupling                  161 / 1,473
+    - "G02B27/42"        # diffraction optics (incl. 27/4205, 27/4272, 27/44) 158+126+40 sector fam
+    - "G03H2001/2284"    # holography: holographic displays                    47 / 243
+    - "G03H2001/0439"    # holography                                          42 / 369
+    - "G03H2270/55"      # holography                                          47 / 115
+    - "G02B7/12"         # adjusting pupillary distance                        60 / 339
+    - "G02B17/086"       # catadioptric / freeform prism systems               55 / 497
+    - "A61B5/6821"       # body sensors mounted at the eye (health glasses)    81 / 679
 
   component_ipc:
     - "G02B27/01"        # head-up displays                            49,607 fam, eye 0.13
@@ -98,16 +112,31 @@ selection:
     - "G06F1/16"         # portable computers                          85,039 fam, eye 0.006
     - "H04R1/10"         #                                             28,465 fam, eye 0.011
     - "H04R25/"          #                                             16,950 fam, eye 0.010
+    # v0.4 from 04_expansion (sector fam / all fam)
+    - "G02B27/00"        # optical systems, main group                  2,342 / 26,404
+    - "G02B27/14"        # beam splitting / combining                     435 / 5,132
+    - "G02B27/42"        # diffraction optics                             336 / 3,873
+    - "G02B5/32"         # holograms as optical elements                  345 / 5,050
+    - "G02B25/00"        # eyepieces, magnifying glasses                  169 / 3,340
+    - "H04N5/64"         # constructional details of video receivers   1,062 / 16,882
+    - "G06V20/20"        # augmented-reality scenes                       234 / 4,575
+    - "G06V40/19"        # eye characteristics (sensors)                   93 / 1,556
 
   # Rule C · eyewear by definition but mostly conventional glasses: kept only
   # if the family mentions smart_terms (an eyewear test would always pass)
+  # v0.4: the whole G02C subclass instead of single groups. 04_expansion
+  # suggested many G02C codes (variable-focus and electro-optic lenses 7/08x,
+  # electro-optic filters 7/101, illuminated spectacles 11/04, anti-misting
+  # 11/08, clip-ons 9, frames 1 and 3...); with rule C they only reach the
+  # semantic filter. G02C7/04 (contact lenses, 396 sector fam) is included
+  # too: the semantic filter has to reject smart contact lenses.
   eyewear_cpc:
-    - "G02C11/00"        # spectacles: non-optical adjuncts, main group 1,585 fam, eye 0.83
-    - "G02C5/"           # spectacle frames, all subgroups (5/00: 2,379 fam, 5/14: 2,504, 5/22: 2,224; eye > 0.8)
+    - "G02C"             # spectacles, lenses, frames (was: G02C11/00 1,585 fam, G02C5/ ~7k fam)
+    - "A45C11/04"        # spectacle cases (charging cases)                74 / 642, v0.4
 
   eyewear_ipc:
-    - "G02C11/00"        # in IPC this also holds electronic spectacles 6,241 fam, eye 0.73
-    - "G02C5/"
+    - "G02C"             # (was: G02C11/00 6,241 fam, G02C5/)
+    - "A45C11/04"        # 79 / 1,479, v0.4
 
   # Review · head-mounted / head-up displays without an eyewear term: many are
   # smart glasses described as "head-mounted display". Not in the sector yet:
@@ -115,8 +144,15 @@ selection:
   review_cpc:
     - "G02B27/01"        # head-up displays, all subgroups (incl. 27/017 HMD)
     - "G02B2027/01"      # head-up display indexing codes
+    - "G02B27/02"        # viewing / reading apparatus (incl. 27/022)        183 / 1,129, v0.4
+    - "H04N13/344"       # stereoscopic HMD, left and right displays          456 / 2,779, v0.4
   review_ipc:
     - "G02B27/01"
+    - "G02B27/02"        # many IPC-only smart glasses are here             1,833 / 10,219, v0.4
+    - "H04N13/344"       #                                                     420 / 2,512, v0.4
+  # Not added (04_expansion): H04N13/332, 13/341, H04N2213/008 are 3D viewing
+  # glasses (cinema / TV shutter glasses), already seen as noise in v0.3;
+  # H04N13/383, 13/327, 13/324, 13/398, G02B30 are generic 3D displays.
 
   # Enough on their own (searched case-insensitively in titles and abstracts)
   specific_keywords:
@@ -124,8 +160,16 @@ selection:
     - "smart eyewear"
     - "smart spectacles"
     - "intelligent glasses"
-    - "augmented reality glasses"    # not "ar glasses": it would also match "solar glasses", "polar glasses"
+    - "augmented reality glasses"
+    - " ar glasses"      # v0.4: 3.7% of sector docs, 2.0% of to-review. Leading blank = word start,
+                         # so "regular / binocular / polar glasses" do not match (texts are matched
+                         # with a blank in front, see keyword_condition in src/sector.py)
     - "mixed reality glasses"
+    # Not added (04_expansion): "vr glasses", "virtual reality glasses" (immersive VR
+    # is outside the boundary); "head-mounted display", "near-eye display", "hmd"
+    # (also in 8-12% of to-review families: VR headsets, helmets; left to the
+    # semantic filter); "glasses legs / frame / body ..." (contain "glasses", which
+    # is already an eyewear term and too generic alone).
     - "eyeglass-type display"
     - "glasses-type display"
     - "spectacle-type display"
@@ -171,11 +215,14 @@ selection:
 # segments for Step 1 (technology mix) and Step 2 (subfield growth).
 segments:
   display_optics:
-    cpc: ["G02B27/01", "G02B2027/01", "G02B6/34", "G02B5/18", "G02B5/32", "G02B27/0081"]
-    terms: ["waveguide", "projector", "microdisplay", "see-through display", "combiner"]
+    cpc: ["G02B27/01", "G02B2027/01", "G02B6/34", "G02B5/18", "G02B5/32", "G02B27/0081",
+          "G02B27/42", "G02B6/00", "G03H", "H04N13/344"]                          # v0.4: last four
+    terms: ["waveguide", "projector", "microdisplay", "see-through display", "combiner",
+            "near-eye display", "near-to-eye display", "coupling-in", "holographic"]  # v0.4: last four
   audio_hearing:
     cpc: ["H04R", "G02C11/06", "H04R2460/13"]
-    terms: ["bone conduction", "speaker", "microphone", "beamforming", "hearing aid", "hearing"]
+    terms: ["bone conduction", "speaker", "microphone", "beamforming", "hearing aid", "hearing",
+            "air conduction", "earphone", "earpiece", "audio", "sound", "acoustic"]  # v0.4: last six
   camera_sensing:
     cpc: ["G02B27/0093", "G02B2027/0138", "G06F3/013", "H04N23/57", "G06T7/70", "G06T7/80", "A61B5/"]
     terms: ["camera", "eye tracking", "sensor", "heart rate", "biometric"]

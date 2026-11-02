@@ -167,6 +167,12 @@ in_sector  = rule A
 to_review  = (rule B or C or HUD/HMD review codes) and not A and not excluded  -> semantic filter (step 3)
 ```
 
+**Update v0.4 (after `04_expansion` on PROD).** Codes and phrases that are much more common among the 17,795 sector families than among all 36.9M families of the window:
+
+- **No new core code.** The suggestions are optical and mechanical parts of spectacles and display technologies, so they widen rules B, C and review: the whole `G02C` subclass becomes an eyewear code (rule C), waveguide, diffraction and holography codes become components (rule B), and `G02B27/02` (viewing apparatus) and `H04N13/344` (stereoscopic HMD) become review codes. 3D viewing glasses (`H04N13/332`, `13/341`) are left out.
+- **One new keyword, " ar glasses"** (3.7% of sector abstracts, 2.0% of the doubtful ones), matched at word start so that "regular glasses" does not count. "VR glasses" and "head-mounted display" are not added: they are also frequent among the doubtful families (VR headsets, helmets) and are left to the semantic filter.
+- **Audio & hearing segment:** 5.7% of the sector families (997) mention an audio or hearing term; the list of segment terms gets "air conduction", "earphone", "audio", "sound"...
+
 **Why IPC as well as CPC:** for **coverage**, not for infringement. CPC is used by the EPO and USPTO; IPC by almost every office, so some CN, JP and KR filings are only classified in IPC.
 
 YAML rather than JSON because the kick-off suggests `config/sector.yaml`; it also allows comments next to each code (its CPC title and why we chose it).
