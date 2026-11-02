@@ -137,15 +137,19 @@ def candidate_pool_query(db, cfg):
         .having(func.max(case((hits.c.rule != "r_excluded", 1), else_=0)) == 1)
         .subquery("flags")
     )
+    # Family year = earliest priority year among its applications. It can be older
+    # than the year of the matched application, so the window is applied again here.
+    family_year = func.min(TLS201_APPLN.earliest_filing_year)
     return (
         db.query(
             *flags.c,
-            func.min(TLS201_APPLN.earliest_filing_year).label("year"),
+            family_year.label("year"),
             func.max(TLS201_APPLN.docdb_family_size).label("family_size"),
         )
         .join(TLS201_APPLN, TLS201_APPLN.docdb_family_id == flags.c.docdb_family_id)
         .filter(TLS201_APPLN.ipr_type == cfg["ipr_type"], TLS201_APPLN.appln_id < DUMMY_APPLN_ID)
         .group_by(*flags.c)
+        .having(family_year.between(cfg["years"]["min"], cfg["years"]["max"]))
     )
 
 
