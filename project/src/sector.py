@@ -171,6 +171,63 @@ def candidate_pool_query(db, cfg):
     )
 
 
+def families_from_ids(db, patstat, id_type, values, chunk=1000):
+    """Map external identifiers to docdb_family_id. Returns a DataFrame (input_id, docdb_family_id).
+
+    id_type: "docdb_family_id", "appln_id", "publication_number" (e.g. "EP3123456A1",
+    "US 10,123,456 B2") or "application_number" (office + number, e.g. "EP15123456").
+    Numbers are matched as office + number without the kind code and without leading zeros.
+    """
+    import re as _re
+    import pandas as _pd
+    from epo.tipdata.patstat.database.models import TLS211_PAT_PUBLN
+
+    values = [str(v).strip() for v in values if str(v).strip() and str(v).strip().lower() != "nan"]
+    if id_type == "docdb_family_id":
+        return _pd.DataFrame({"input_id": values, "docdb_family_id": [int(float(v)) for v in values]})
+
+    if id_type == "appln_id":
+        wanted = _pd.DataFrame({"input_id": values, "appln_id": [int(float(v)) for v in values]})
+        ids = wanted["appln_id"].unique().tolist()
+        parts = [patstat.df(db.query(TLS201_APPLN.appln_id, TLS201_APPLN.docdb_family_id)
+                            .filter(TLS201_APPLN.appln_id.in_(ids[i:i + chunk])))
+                 for i in range(0, len(ids), chunk)]
+        found = _pd.concat(parts, ignore_index=True) if parts else _pd.DataFrame()
+        if found.empty:
+            return _pd.DataFrame(columns=["input_id", "docdb_family_id"])
+        return wanted.merge(found, on="appln_id")[["input_id", "docdb_family_id"]]
+
+    # office + number: "EP 3 123 456 A1" -> ("EP", "3123456")
+    parsed = []
+    for v in values:
+        m = _re.match(r"^([A-Za-z]{2})\W*([0-9][0-9 ,./-]*)", v)
+        if m:
+            parsed.append((v, m.group(1).upper(), _re.sub(r"\D", "", m.group(2)).lstrip("0")))
+    if not parsed:
+        return _pd.DataFrame(columns=["input_id", "docdb_family_id"])
+    wanted = _pd.DataFrame(parsed, columns=["input_id", "auth", "nr"])
+
+    if id_type == "publication_number":
+        auth_col, nr_col, key = TLS211_PAT_PUBLN.publn_auth, TLS211_PAT_PUBLN.publn_nr, TLS211_PAT_PUBLN.appln_id
+        base = db.query(auth_col.label("auth"), nr_col.label("nr"), TLS201_APPLN.docdb_family_id).join(
+            TLS201_APPLN, TLS201_APPLN.appln_id == key)
+    elif id_type == "application_number":
+        auth_col, nr_col = TLS201_APPLN.appln_auth, TLS201_APPLN.appln_nr
+        base = db.query(auth_col.label("auth"), nr_col.label("nr"), TLS201_APPLN.docdb_family_id)
+    else:
+        raise ValueError(f"unknown id_type: {id_type}")
+
+    # filter on offices and numbers separately (BigQuery has no tuple IN), then keep the exact pairs
+    nrs = wanted["nr"].unique().tolist()
+    parts = [patstat.df(base.filter(auth_col.in_(wanted["auth"].unique().tolist()), nr_col.in_(nrs[i:i + chunk])))
+             for i in range(0, len(nrs), chunk)]
+    found = _pd.concat(parts, ignore_index=True) if parts else _pd.DataFrame()
+    if found.empty:
+        return _pd.DataFrame(columns=["input_id", "docdb_family_id"])
+    found["nr"] = found["nr"].astype(str).str.lstrip("0")
+    return wanted.merge(found, on=["auth", "nr"])[["input_id", "docdb_family_id"]].drop_duplicates()
+
+
 OFFICE_PRIORITY = ("EP", "WO", "US")   # preferred source of the English abstract of a family
 
 
