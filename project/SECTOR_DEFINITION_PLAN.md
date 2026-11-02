@@ -160,6 +160,13 @@ Sector = core_cpc ∪ core_ipc ∪ specific_keywords          (rule A)
 - **Generic codes stay as component:** e.g. `H04R1/10` (earphones) has 24k families and only 277 mention eyewear, but those 277 are exactly the audio segment Amplifon cares about.
 - **IPC:** `G02B27/017` and `G02C11/10` do not exist in IPC; electronic spectacles are under IPC `G02C11/00` (6.2k families, ~1.9k not covered by CPC core), which confirms that IPC adds coverage.
 
+**Update v0.3 (after `02_candidate_pool` on PROD: 61,201 candidate families).** We read random titles of the families found by only one rule. Rule A (core codes, keywords) looked clean; rules B and C alone did not (virtual try-on of glasses, 3D glasses, car head-up displays, contact lenses, generic electronics), and the exclusion term `windshield` removed some real AR-glasses patents. The selection therefore has two tiers:
+
+```
+in_sector  = rule A
+to_review  = (rule B or C or HUD/HMD review codes) and not A and not excluded  -> semantic filter (step 3)
+```
+
 **Why IPC as well as CPC:** for **coverage**, not for infringement. CPC is used by the EPO and USPTO; IPC by almost every office, so some CN, JP and KR filings are only classified in IPC.
 
 YAML rather than JSON because the kick-off suggests `config/sector.yaml`; it also allows comments next to each code (its CPC title and why we chose it).

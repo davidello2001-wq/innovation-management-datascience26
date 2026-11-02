@@ -6,7 +6,11 @@
 #
 # Titles in the comments are from memory: VERIFY each one in the CPC scheme
 # (https://www.cooperativepatentclassification.org) before the final run.
-# Status: v0.2, codes reclassified with 01_code_diagnostics on PROD.
+# Status: v0.3. v0.2: codes reclassified with 01_code_diagnostics on PROD.
+# v0.3: after eyeballing random titles of 02_candidate_pool on PROD, rule A is
+# accepted directly; rules B and C alone were too noisy (virtual try-on of
+# glasses, 3D glasses, car HUDs, contact lenses...) and go to the semantic
+# filter together with the review codes. exclude_terms apply to that tier only.
 # Numbers in the comments: families 2000-2025 (PROD) and share of them whose
 # title/abstract mentions eyewear ("eye"), from code_diagnostics_PROD.csv.
 

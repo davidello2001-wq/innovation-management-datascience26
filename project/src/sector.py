@@ -87,12 +87,14 @@ def _within(families, other):
     return families.filter(TLS201_APPLN.docdb_family_id.in_(other.subquery().select()))
 
 
-# Rules that put a family in the sector (see config/sector.yaml, rules A, B, C)
-SECTOR_RULES = (
-    "r_core_cpc", "r_core_ipc", "r_keyword",            # A
-    "r_component_cpc", "r_component_ipc",               # B
-    "r_eyewear_cpc", "r_eyewear_ipc",                   # C
-)
+# Rule A puts a family in the sector. Rules B and C were too noisy on PROD
+# (eyeballed samples, 02_candidate_pool): alone, they send the family to the
+# semantic filter, like the head-up / head-mounted display codes (r_review).
+CORE_RULES = ("r_core_cpc", "r_core_ipc", "r_keyword")                       # A
+REVIEW_RULES = ("r_component_cpc", "r_component_ipc",                        # B
+                "r_eyewear_cpc", "r_eyewear_ipc",                            # C
+                "r_review")
+SECTOR_RULES = CORE_RULES + REVIEW_RULES[:-1]
 
 
 def rule_queries(db, cfg):
