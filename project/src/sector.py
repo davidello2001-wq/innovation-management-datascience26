@@ -116,6 +116,20 @@ def rule_queries(db, cfg):
     }
 
 
+def sector_family_ids(db, cfg):
+    """Query of the docdb_family_ids that are in the sector for sure (rule A)."""
+    rules = rule_queries(db, cfg)
+    first, *others = (rules[name] for name in CORE_RULES)
+    return first.union(*others)
+
+
+def configured_codes(cfg, scheme):
+    """All codes of the selection lists for one scheme ("cpc" or "ipc"), blanks removed."""
+    sel = cfg["selection"]
+    lists = ("core", "component", "eyewear", "review")
+    return [c.replace(" ", "") for name in lists for c in sel.get(f"{name}_{scheme}", [])]
+
+
 def candidate_pool_query(db, cfg):
     """One row per candidate family: a 0/1 flag per rule, priority year and family size.
 
