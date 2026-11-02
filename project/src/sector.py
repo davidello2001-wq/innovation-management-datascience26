@@ -153,6 +153,45 @@ def candidate_pool_query(db, cfg):
     )
 
 
+OFFICE_PRIORITY = ("EP", "WO", "US")   # preferred source of the English abstract of a family
+
+
+def family_english_texts(db, family_ids):
+    """One row per family: the English abstract (and the title of the same application).
+
+    Among the applications of the family with an English abstract, take the first
+    office in OFFICE_PRIORITY, then any other office; ties broken by appln_id.
+    The language code is compared case-insensitively ("EN" and "en" both occur).
+    """
+    office_rank = case(*((TLS201_APPLN.appln_auth == o, i) for i, o in enumerate(OFFICE_PRIORITY)),
+                       else_=len(OFFICE_PRIORITY))
+    rank = func.row_number().over(
+        partition_by=TLS201_APPLN.docdb_family_id,
+        order_by=(office_rank, TLS201_APPLN.appln_id),
+    ).label("rank")
+    ranked = (
+        db.query(
+            TLS201_APPLN.docdb_family_id,
+            TLS201_APPLN.appln_id,
+            TLS201_APPLN.appln_auth,
+            TLS202_APPLN_TITLE.appln_title,
+            TLS203_APPLN_ABSTR.appln_abstract,
+            rank,
+        )
+        .join(TLS203_APPLN_ABSTR, TLS201_APPLN.appln_id == TLS203_APPLN_ABSTR.appln_id)
+        .outerjoin(TLS202_APPLN_TITLE, TLS201_APPLN.appln_id == TLS202_APPLN_TITLE.appln_id)
+        .filter(
+            TLS201_APPLN.docdb_family_id.in_([int(i) for i in family_ids]),
+            func.lower(func.trim(TLS203_APPLN_ABSTR.appln_abstract_lg)) == "en",
+        )
+        .subquery()
+    )
+    return db.query(
+        ranked.c.docdb_family_id, ranked.c.appln_id, ranked.c.appln_auth,
+        ranked.c.appln_title, ranked.c.appln_abstract,
+    ).filter(ranked.c.rank == 1)
+
+
 def family_titles(db, family_ids):
     """All titles (with their language) of the applications of the families, for eyeballing samples."""
     return (
