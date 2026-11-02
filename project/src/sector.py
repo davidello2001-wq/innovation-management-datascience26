@@ -147,12 +147,10 @@ def candidate_pool_query(db, cfg):
     )
 
 
-def english_titles(db, family_ids):
-    """One English title per family, for eyeballing samples."""
+def family_titles(db, family_ids):
+    """All titles (with their language) of the applications of the families, for eyeballing samples."""
     return (
-        db.query(TLS201_APPLN.docdb_family_id, func.max(TLS202_APPLN_TITLE.appln_title).label("title"))
+        db.query(TLS201_APPLN.docdb_family_id, TLS202_APPLN_TITLE.appln_title_lg, TLS202_APPLN_TITLE.appln_title)
         .join(TLS202_APPLN_TITLE, TLS201_APPLN.appln_id == TLS202_APPLN_TITLE.appln_id)
-        .filter(TLS201_APPLN.docdb_family_id.in_([int(i) for i in family_ids]),
-                TLS202_APPLN_TITLE.appln_title_lg == "en")
-        .group_by(TLS201_APPLN.docdb_family_id)
+        .filter(TLS201_APPLN.docdb_family_id.in_([int(i) for i in family_ids]))
     )
