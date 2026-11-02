@@ -6,7 +6,9 @@
 #
 # Titles in the comments are from memory: VERIFY each one in the CPC scheme
 # (https://www.cooperativepatentclassification.org) before the final run.
-# Status: v0.1, first classification of the codes in key_words.ipynb.
+# Status: v0.2, codes reclassified with 01_code_diagnostics on PROD.
+# Numbers in the comments: families 2000-2025 (PROD) and share of them whose
+# title/abstract mentions eyewear ("eye"), from code_diagnostics_PROD.csv.
 
 sector_name: "Smart glasses"
 
@@ -31,73 +33,86 @@ ipr_type: "PI"       # patents of invention only
 # ---------------------------------------------------------------- selection
 selection:
 
-  # Enough on their own: a family with one of these codes is in the sector
+  # Rule A · enough on their own: smart eyewear by definition
   core_cpc:
-    - "G02B27/017"       # head-mounted displays (covers /0172 optical, /0176 mechanical features)
-    - "G02B2027/0178"    # head-mounted displays, eyeglass type
-    - "G02B2027/0174"    # head-mounted displays, holographic optical features
-    - "G02C11/10"        # spectacles: electronic devices other than hearing aids
-    - "G02C11/06"        # spectacles: hearing aids
-    - "G02C11/00"        # spectacles: non-optical adjuncts (main group only, may include passive adjuncts)
+    - "G02B2027/0178"    # HMD, eyeglass type                         12,508 fam, eye 0.34 (abstracts say "HMD", not "glasses")
+    - "G02C11/10"        # spectacles: electronic devices              3,514 fam, eye 0.68
+    - "G02C11/06"        # spectacles: hearing aids                      423 fam, eye 0.67 (key for Amplifon)
 
   core_ipc:
-    - "G02B27/017"       # head-mounted (check it exists in IPC; otherwise G02B27/01 + eyewear terms)
-    - "G02C11/10"
-    - "G02C11/06"
-    - "G02C11/00"
+    - "G02C11/06"        # hearing aids on spectacles                    484 fam, eye 0.73
+    # G02B27/017 and G02C11/10 do not exist in IPC (0 families): electronic
+    # spectacles are in IPC G02C11/00, handled by rule C below
 
-  # Never enough alone: kept only with an eyewear term, or after the semantic filter
+  # Rule B · generic technologies: kept only if the family mentions eyewear_terms
   component_cpc:
-    # display & optics: head-up displays in general (also cars, helmets)
-    - "G02B27/0179"      # HUD display position adjusting means
-    - "G02B27/0081"      # optical systems altering entrance/exit pupil
-    - "G02B6/34"         # light guides: coupling by prism or grating (waveguides)
-    - "G02B5/18"         # diffraction gratings
-    - "G02B5/32"         # holograms as optical elements
-    - "G02B2027/0116"    # HUD: chromatic aberration correction
-    - "G02B2027/0118"    # HUD: contrast / brilliance
-    - "G02B2027/0123"    # HUD: increasing the field of view
-    - "G02B2027/013"     # HUD: combiner of particular shape
-    - "G02B2027/0132"    # HUD: binocular systems
-    - "G02B2027/0134"    # HUD: binocular stereoscopic
-    - "G02B2027/0185"    # HUD: image at variable distance
-    - "G02B2027/015"     # HUD: mechanical features
-    - "G02B2027/0152"    # HUD: lighter or better balanced devices
-    - "G02B2027/014"     # HUD: information / image processing
+    # display & optics
+    - "G02B27/017"       # HMD, all types (incl. VR headsets, helmets)  32,220 fam, eye 0.17 -> moved out of core in v0.2
+    - "G02B2027/0174"    # HMD, holographic                             1,934 fam, eye 0.09 -> moved out of core in v0.2
+    - "G02B27/0179"      # HUD display position adjusting means         2,375 fam, eye 0.07
+    - "G02B27/0081"      # altering entrance/exit pupil                 2,057 fam, eye 0.05
+    - "G02B6/34"         # light guides: prism / grating coupling       2,020 fam, eye 0.01
+    - "G02B5/18"         # diffraction gratings                         8,566 fam, eye 0.02
+    - "G02B5/32"         # holograms as optical elements                2,519 fam, eye 0.02
+    - "G02B2027/0116"    # HUD: chromatic aberration                      412 fam, eye 0.06
+    - "G02B2027/0118"    # HUD: contrast / brilliance                   2,880 fam, eye 0.06
+    - "G02B2027/0123"    # HUD: field of view                           2,253 fam, eye 0.08
+    - "G02B2027/013"     # HUD: combiner                               10,044 fam, eye 0.12
+    - "G02B2027/0132"    # HUD: binocular                                 914 fam, eye 0.14
+    - "G02B2027/0134"    # HUD: binocular stereoscopic                  1,757 fam, eye 0.10
+    - "G02B2027/0185"    # HUD: image at variable distance                763 fam, eye 0.04
+    - "G02B2027/015"     # HUD: mechanical features                     3,030 fam, eye 0.09
+    - "G02B2027/0152"    # HUD: lighter / balanced                        293 fam, eye 0.08
+    - "G02B2027/014"     # HUD: image processing                       10,106 fam, eye 0.10
     # camera & sensing
-    - "G02B27/0093"      # optical systems monitoring the user (head / eye tracking)
-    - "G02B2027/0138"    # HUD: image capture systems, e.g. camera
-    - "G06F3/013"        # eye-tracking input
-    - "H04N23/57"        # cameras embedded in other devices
-    - "G06T7/70"         # position / orientation estimation (very broad)
-    - "G06T7/80"         # camera calibration (very broad)
+    - "G02B27/0093"      # monitoring the user (head / eye tracking)    6,520 fam, eye 0.09
+    - "G02B2027/0138"    # HUD: image capture, camera                   7,517 fam, eye 0.13
+    - "G06F3/013"        # eye-tracking input                          17,356 fam, eye 0.06
+    - "H04N23/57"        # cameras embedded in other devices           18,392 fam, eye 0.01
+    - "G06T7/70"         # position / orientation estimation           31,052 fam, eye 0.004 (adds little)
+    - "G06T7/80"         # camera calibration                          17,729 fam, eye 0.003 (adds little)
     # interaction & software
-    - "G02B2027/0187"    # display position slaved to head / eye motion
-    - "G06F3/011"        # interaction with the human body, e.g. immersion
-    - "G06F3/012"        # head-tracking input
-    - "G06F3/017"        # gesture-based interaction
-    - "G06T19/006"       # mixed reality
-    - "G06V20/20"        # augmented-reality scenes
-    - "G06F1/163"        # wearable computers
-    - "H04W12/33"        # security using wearable devices
-    # audio & hearing
-    - "H04R1/10"         # earpieces, earphones
-    - "H04R1/028"        # loudspeaker casings in devices with other functions
-    # frame, power & connectivity
-    - "G02C5/00"         # spectacle frames: non-optical parts (main group only)
-    - "G02C5/14"         # side-members (temples)
-    - "G02C5/22"         # hinges
-    - "H01Q1/273"        # antennas worn on the body
-    # NEW, not in key_words.ipynb yet (verify in the scheme)
-    - "H04R25/"          # hearing aids (all subgroups)
-    - "H04R2460/13"      # hearing devices using bone conduction
+    - "G02B2027/0187"    # display slaved to head / eye motion          4,827 fam, eye 0.08
+    - "G06F3/011"        # interaction with the human body             37,854 fam, eye 0.04
+    - "G06F3/012"        # head-tracking input                          8,728 fam, eye 0.05
+    - "G06F3/017"        # gesture-based interaction                   27,153 fam, eye 0.02
+    - "G06T19/006"       # mixed reality                               26,584 fam, eye 0.04
+    - "G06V20/20"        # augmented-reality scenes                     9,697 fam, eye 0.04
+    - "G06F1/163"        # wearable computers                          23,771 fam, eye 0.02
+    - "H04W12/33"        # security using wearable devices                940 fam, eye 0.01
+    # audio & hearing (few eyewear families, but exactly the Amplifon segment)
+    - "H04R1/10"         # earpieces, earphones                        24,383 fam, eye 0.011 (277 fam)
+    - "H04R1/028"        # loudspeakers in devices with other functions 5,332 fam, eye 0.02
+    - "H04R25/"          # hearing aids                                11,710 fam, eye 0.009 (103 fam)
+    - "H04R2460/13"      # bone conduction hearing devices              2,304 fam, eye 0.05
+    # connectivity
+    - "H01Q1/273"        # antennas worn on the body                    3,132 fam, eye 0.03
 
   component_ipc:
-    - "G02B27/01"        # head-up displays
-    - "G06F3/01"         # input arrangements for interaction with the user
-    - "G06F1/16"         # constructional details of portable computers
-    - "H04R1/10"
-    - "H04R25/"
+    - "G02B27/01"        # head-up displays                            49,607 fam, eye 0.13
+    - "G06F3/01"         # input arrangements                         118,648 fam, eye 0.03
+    - "G06F1/16"         # portable computers                          85,039 fam, eye 0.006
+    - "H04R1/10"         #                                             28,465 fam, eye 0.011
+    - "H04R25/"          #                                             16,950 fam, eye 0.010
+
+  # Rule C · eyewear by definition but mostly conventional glasses: kept only
+  # if the family mentions smart_terms (an eyewear test would always pass)
+  eyewear_cpc:
+    - "G02C11/00"        # spectacles: non-optical adjuncts, main group 1,585 fam, eye 0.83
+    - "G02C5/"           # spectacle frames, all subgroups (5/00: 2,379 fam, 5/14: 2,504, 5/22: 2,224; eye > 0.8)
+
+  eyewear_ipc:
+    - "G02C11/00"        # in IPC this also holds electronic spectacles 6,241 fam, eye 0.73
+    - "G02C5/"
+
+  # Review · head-mounted / head-up displays without an eyewear term: many are
+  # smart glasses described as "head-mounted display". Not in the sector yet:
+  # they go to the semantic filter (step 3).
+  review_cpc:
+    - "G02B27/01"        # head-up displays, all subgroups (incl. 27/017 HMD)
+    - "G02B2027/01"      # head-up display indexing codes
+  review_ipc:
+    - "G02B27/01"
 
   # Enough on their own (searched case-insensitively in titles and abstracts)
   specific_keywords:
@@ -114,7 +129,25 @@ selection:
     - "hearing glasses"
     - "audio glasses"
 
-  # Used with component codes: the family must mention eyewear
+  # Used with eyewear codes (rule C): the family must mention an electronic function
+  smart_terms:
+    - "electronic"
+    - "circuit"
+    - "battery"
+    - "display"
+    - "camera"
+    - "sensor"
+    - "speaker"
+    - "microphone"
+    - "earphone"
+    - "bone conduction"
+    - "hearing aid"
+    - "wireless"
+    - "bluetooth"
+    - "processor"
+    - "projector"
+
+  # Used with component codes (rule B): the family must mention eyewear
   eyewear_terms:
     - "eyeglass"
     - "eyewear"

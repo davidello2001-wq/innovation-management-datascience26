@@ -8,7 +8,7 @@ case-insensitively in titles and abstracts.
 from pathlib import Path
 
 import yaml
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, literal, or_, select, union_all
 
 from epo.tipdata.patstat.database.models import (
     TLS201_APPLN,
@@ -79,4 +79,80 @@ def families_by_keywords(db, cfg, terms):
         .outerjoin(TLS202_APPLN_TITLE, TLS201_APPLN.appln_id == TLS202_APPLN_TITLE.appln_id)
         .outerjoin(TLS203_APPLN_ABSTR, TLS201_APPLN.appln_id == TLS203_APPLN_ABSTR.appln_id)
         .filter(*scope_filter(cfg), keyword_condition(terms))
+    )
+
+
+def _within(families, other):
+    """Keep only the families of `families` that are also in `other` (family-level AND)."""
+    return families.filter(TLS201_APPLN.docdb_family_id.in_(other.subquery().select()))
+
+
+# Rules that put a family in the sector (see config/sector.yaml, rules A, B, C)
+SECTOR_RULES = (
+    "r_core_cpc", "r_core_ipc", "r_keyword",            # A
+    "r_component_cpc", "r_component_ipc",               # B
+    "r_eyewear_cpc", "r_eyewear_ipc",                   # C
+)
+
+
+def rule_queries(db, cfg):
+    """One query of docdb_family_ids per rule; the names are the flag columns of the candidate pool."""
+    sel = cfg["selection"]
+    mentions_eyewear = families_by_keywords(db, cfg, sel["eyewear_terms"] + sel["specific_keywords"])
+    mentions_smart = families_by_keywords(db, cfg, sel["smart_terms"])
+    return {
+        "r_core_cpc": families_by_cpc(db, cfg, sel["core_cpc"]),
+        "r_core_ipc": families_by_ipc(db, cfg, sel["core_ipc"]),
+        "r_keyword": families_by_keywords(db, cfg, sel["specific_keywords"]),
+        "r_component_cpc": _within(families_by_cpc(db, cfg, sel["component_cpc"]), mentions_eyewear),
+        "r_component_ipc": _within(families_by_ipc(db, cfg, sel["component_ipc"]), mentions_eyewear),
+        "r_eyewear_cpc": _within(families_by_cpc(db, cfg, sel["eyewear_cpc"]), mentions_smart),
+        "r_eyewear_ipc": _within(families_by_ipc(db, cfg, sel["eyewear_ipc"]), mentions_smart),
+        "r_review": families_by_cpc(db, cfg, sel["review_cpc"]).union(
+            families_by_ipc(db, cfg, sel["review_ipc"])),
+        "r_excluded": families_by_keywords(db, cfg, sel["exclude_terms"]),
+    }
+
+
+def candidate_pool_query(db, cfg):
+    """One row per candidate family: a 0/1 flag per rule, priority year and family size.
+
+    The rules are evaluated inside the database and only the flags are downloaded.
+    A family is a candidate if it matches any rule except r_excluded.
+    """
+    rules = rule_queries(db, cfg)
+    hits = union_all(*(
+        select(literal(name).label("rule"), q.subquery().c.docdb_family_id.label("docdb_family_id"))
+        for name, q in rules.items()
+    )).subquery("hits")
+
+    flags = (
+        db.query(
+            hits.c.docdb_family_id.label("docdb_family_id"),
+            *(func.max(case((hits.c.rule == name, 1), else_=0)).label(name) for name in rules),
+        )
+        .group_by(hits.c.docdb_family_id)
+        .having(func.max(case((hits.c.rule != "r_excluded", 1), else_=0)) == 1)
+        .subquery("flags")
+    )
+    return (
+        db.query(
+            *flags.c,
+            func.min(TLS201_APPLN.earliest_filing_year).label("year"),
+            func.max(TLS201_APPLN.docdb_family_size).label("family_size"),
+        )
+        .join(TLS201_APPLN, TLS201_APPLN.docdb_family_id == flags.c.docdb_family_id)
+        .filter(TLS201_APPLN.ipr_type == cfg["ipr_type"], TLS201_APPLN.appln_id < DUMMY_APPLN_ID)
+        .group_by(*flags.c)
+    )
+
+
+def english_titles(db, family_ids):
+    """One English title per family, for eyeballing samples."""
+    return (
+        db.query(TLS201_APPLN.docdb_family_id, func.max(TLS202_APPLN_TITLE.appln_title).label("title"))
+        .join(TLS202_APPLN_TITLE, TLS201_APPLN.appln_id == TLS202_APPLN_TITLE.appln_id)
+        .filter(TLS201_APPLN.docdb_family_id.in_([int(i) for i in family_ids]),
+                TLS202_APPLN_TITLE.appln_title_lg == "en")
+        .group_by(TLS201_APPLN.docdb_family_id)
     )

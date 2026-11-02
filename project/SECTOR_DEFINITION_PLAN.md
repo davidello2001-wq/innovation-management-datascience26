@@ -137,17 +137,28 @@ segments:
 |---|---|
 | `core_cpc`, `core_ipc`, `specific_keywords` | enough on their own: the family is in the sector |
 | `component_cpc`, `component_ipc` | **never enough alone**: only together with `eyewear_terms`, or after the semantic filter |
+| `eyewear_cpc`, `eyewear_ipc` | eyewear codes that also cover conventional glasses: only together with `smart_terms` |
 | `eyewear_terms` | restricts generic component codes to eyewear |
+| `smart_terms` | restricts eyewear codes to electronic eyewear |
 | `exclude_terms` | removes known false positives |
 | `segments` | not used for selection; tags each selected family for Step 1–2 |
 
 Selection rule for the candidate pool:
 
 ```
-Sector = core_cpc ∪ core_ipc ∪ specific_keywords
-       ∪ (component codes ∩ eyewear_terms)
+Sector = core_cpc ∪ core_ipc ∪ specific_keywords          (rule A)
+       ∪ (component codes ∩ eyewear_terms)                (rule B)
+       ∪ (eyewear codes ∩ smart_terms)                    (rule C)
        − exclude_terms
 ```
+
+**Update v0.2 (after `01_code_diagnostics` on PROD).** For every code we measured how many families it selects and the share that mentions eyewear in a title or abstract. Results (full numbers in the comments of `config/sector.yaml`):
+
+- **Core (rule A):** only `G02B2027/0178` (eyeglass-type HMD, 12.5k families), `G02C11/10` (electronics on spectacles, 3.5k) and `G02C11/06` (hearing aids on spectacles, 0.4k; also in IPC).
+- **`G02B27/017` moved to component:** 32k families but only 17% mention eyewear; it covers every head-mounted display, including VR headsets and helmets, which are outside our boundary.
+- **New rule C:** `G02C5` (frames, hinges, temples) and `G02C11/00` are eyewear by definition (eyewear share > 80%) but mostly *conventional* glasses, so an eyewear test is useless there; we require an electronic term (`smart_terms`) instead.
+- **Generic codes stay as component:** e.g. `H04R1/10` (earphones) has 24k families and only 277 mention eyewear, but those 277 are exactly the audio segment Amplifon cares about.
+- **IPC:** `G02B27/017` and `G02C11/10` do not exist in IPC; electronic spectacles are under IPC `G02C11/00` (6.2k families, ~1.9k not covered by CPC core), which confirms that IPC adds coverage.
 
 **Why IPC as well as CPC:** for **coverage**, not for infringement. CPC is used by the EPO and USPTO; IPC by almost every office, so some CN, JP and KR filings are only classified in IPC.
 
