@@ -30,6 +30,38 @@ description: >
   overlays, hands-free communication and media, navigation, health monitoring
   and hearing assistance.
 
+# ---------------------------------------------------------------- semantic filter (05_semantic_filter)
+# Each abstract is compared with `description` (above) and with the negative
+# descriptions below, which describe the typical false positives seen in the
+# to-review tier. Embedding models do not understand negation ("excludes VR
+# headsets" would make VR headsets look closer), so exclusions are separate texts:
+# margin = similarity to the description - highest similarity to a negative.
+semantic:
+  model: "graziasveva93/sbert-adapt-ub"   # Patent SBERT-adapt-ub (Ascione & Sterzi, 2024), Tutorial 0 Section 6
+  max_seq_length: 256                     # tokens per abstract: enough for most abstracts, faster on CPU
+  negatives:
+    vr_headset: >
+      An immersive virtual reality headset that covers the eyes and blocks the view
+      of the surroundings, with a closed housing, head strap, lenses and a display
+      panel for games, video and virtual environments.
+    vehicle_hud: >
+      A head-up display for a car, vehicle or aircraft that projects driving or flight
+      information onto the windshield, windscreen or a combiner in front of the driver
+      or pilot.
+    contact_lens: >
+      A contact lens worn directly on the cornea of the eye, including soft or rigid
+      lenses, ophthalmic lens materials and lenses with embedded sensors or circuits.
+    viewing_3d: >
+      Glasses for watching stereoscopic three-dimensional images on a television,
+      monitor or cinema screen, using shutter lenses or polarising filters synchronised
+      with the display.
+    eyewear_retail: >
+      A method or system for virtually trying on spectacle frames, recommending or
+      selling glasses online, or measuring a customer's face for fitting eyeglasses.
+    conventional_eyewear: >
+      Conventional spectacles without electronics: frames, rims, hinges, temples, nose
+      pads, sunglasses and ophthalmic lenses for correcting vision.
+
 years:
   min: 2000          # earliest priority year (earliest_filing_year)
   max: 2025
