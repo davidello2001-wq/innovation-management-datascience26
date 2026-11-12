@@ -8,7 +8,7 @@ case-insensitively in titles and abstracts.
 from pathlib import Path
 
 import yaml
-from sqlalchemy import case, func, literal, or_, select, union_all
+from sqlalchemy import and_, case, func, literal, literal_column, or_, select, union_all
 
 from epo.tipdata.patstat.database.models import (
     TLS201_APPLN,
@@ -136,27 +136,81 @@ def configured_codes(cfg, scheme):
     return [c.replace(" ", "") for name in lists for c in sel.get(f"{name}_{scheme}", [])]
 
 
+def _max_flags(conditions):
+    """One 0/1 column per condition: 1 if any row of the group meets it."""
+    return [func.max(case((cond, 1), else_=0)).label(name) for name, cond in conditions.items()]
+
+
 def candidate_pool_query(db, cfg):
     """One row per candidate family: a 0/1 flag per rule, priority year and family size.
 
-    The rules are evaluated inside the database and only the flags are downloaded.
-    A family is a candidate if it matches any rule except r_excluded.
+    Same rules as rule_queries, but each table is read once (v0.5): BigQuery runs
+    a subquery again every time it is referenced, so the separate rule queries
+    scanned all titles and abstracts about seven times. Here one scan of the texts
+    gives a flag per term list, one scan of CPC and one of IPC a flag per code
+    list; the rules are then combined per family. A family is a candidate if it
+    matches any rule except r_excluded.
     """
-    rules = rule_queries(db, cfg)
-    hits = union_all(*(
-        select(literal(name).label("rule"), q.subquery().c.docdb_family_id.label("docdb_family_id"))
-        for name, q in rules.items()
-    )).subquery("hits")
+    sel = cfg["selection"]
+    lists = ("core", "component", "eyewear", "review")
+    text_flags = {
+        "k_eyewear": keyword_condition(sel["eyewear_terms"] + sel["specific_keywords"]),
+        "k_smart": keyword_condition(sel["smart_terms"]),
+        "k_specific": keyword_condition(sel["specific_keywords"]),
+        "k_hmd": keyword_condition(sel["hmd_terms"]),
+        "k_excluded": keyword_condition(sel["exclude_terms"]),
+    }
+    cpc_flags = {f"c_{n}": symbol_prefix_condition(TLS224_APPLN_CPC.cpc_class_symbol, sel[f"{n}_cpc"]) for n in lists}
+    ipc_flags = {f"i_{n}": symbol_prefix_condition(TLS209_APPLN_IPC.ipc_class_symbol, sel[f"{n}_ipc"]) for n in lists}
+    family = TLS201_APPLN.docdb_family_id.label("docdb_family_id")
 
-    flags = (
-        db.query(
-            hits.c.docdb_family_id.label("docdb_family_id"),
-            *(func.max(case((hits.c.rule == name, 1), else_=0)).label(name) for name in rules),
-        )
-        .group_by(hits.c.docdb_family_id)
-        .having(func.max(case((hits.c.rule != "r_excluded", 1), else_=0)) == 1)
-        .subquery("flags")
-    )
+    texts = (select(family, *_max_flags(text_flags))
+             .select_from(TLS201_APPLN)
+             .outerjoin(TLS202_APPLN_TITLE, TLS201_APPLN.appln_id == TLS202_APPLN_TITLE.appln_id)
+             .outerjoin(TLS203_APPLN_ABSTR, TLS201_APPLN.appln_id == TLS203_APPLN_ABSTR.appln_id)
+             .where(*scope_filter(cfg), or_(*text_flags.values()))
+             .group_by(TLS201_APPLN.docdb_family_id))
+    cpc = (select(family, *_max_flags(cpc_flags))
+           .select_from(TLS201_APPLN)
+           .join(TLS224_APPLN_CPC, TLS201_APPLN.appln_id == TLS224_APPLN_CPC.appln_id)
+           .where(*scope_filter(cfg), or_(*cpc_flags.values()))
+           .group_by(TLS201_APPLN.docdb_family_id))
+    ipc = (select(family, *_max_flags(ipc_flags))
+           .select_from(TLS201_APPLN)
+           .join(TLS209_APPLN_IPC, TLS201_APPLN.appln_id == TLS209_APPLN_IPC.appln_id)
+           .where(*scope_filter(cfg), or_(*ipc_flags.values()))
+           .group_by(TLS201_APPLN.docdb_family_id))
+
+    # Stack the three scans (missing flags = 0) and keep the maximum per family
+    names = [*text_flags, *cpc_flags, *ipc_flags]
+
+    def padded(query, own):
+        sq = query.subquery()
+        return select(sq.c.docdb_family_id,
+                      *(sq.c[n] if n in own else literal_column("0").label(n) for n in names))
+
+    stacked = union_all(padded(texts, text_flags), padded(cpc, cpc_flags), padded(ipc, ipc_flags)).subquery("stacked")
+    f = (select(stacked.c.docdb_family_id, *(func.max(stacked.c[n]).label(n) for n in names))
+         .group_by(stacked.c.docdb_family_id)
+         .subquery("f")).c
+
+    # The rules of rule_queries, from the flags (same names and order)
+    rules = {
+        "r_core_cpc": f.c_core == 1,
+        "r_core_ipc": f.i_core == 1,
+        "r_keyword": f.k_specific == 1,
+        "r_component_cpc": and_(f.c_component == 1, f.k_eyewear == 1),
+        "r_component_ipc": and_(f.i_component == 1, f.k_eyewear == 1),
+        "r_eyewear_cpc": and_(f.c_eyewear == 1, f.k_smart == 1),
+        "r_eyewear_ipc": and_(f.i_eyewear == 1, f.k_smart == 1),
+        "r_review": or_(f.c_review == 1, f.i_review == 1),
+        "r_hmd_text": f.k_hmd == 1,
+        "r_excluded": f.k_excluded == 1,
+    }
+    flags = (select(f.docdb_family_id, *(case((cond, 1), else_=0).label(n) for n, cond in rules.items()))
+             .where(or_(*(cond for n, cond in rules.items() if n != "r_excluded")))
+             .subquery("flags"))
+
     # Family year = earliest priority year among its applications. It can be older
     # than the year of the matched application, so the window is applied again here.
     family_year = func.min(TLS201_APPLN.earliest_filing_year)
