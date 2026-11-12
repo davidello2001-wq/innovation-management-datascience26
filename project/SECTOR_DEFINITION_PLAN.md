@@ -178,6 +178,15 @@ to_review  = (rule B or C or HUD/HMD review codes) and not A and not excluded  -
 - New rule **W**: any family whose title or abstract mentions a head-mounted display or AR term (`hmd_terms`) goes to review, whatever its codes.
 - Labels now have three values (`data/labels/LABELING_GUIDE.md`): **1** smart glasses (our sector), **2** adjacent market (closed VR headsets, helmet-mounted displays, generic HMD software), **0** not related. The classifier keeps 1 in the sector and sets 2 apart, so the deck can compare smart glasses with the adjacent HMD / VR market.
 
+**Update v0.6 (one label format for the team, and a classifier instead of a threshold on the margin).** Two perimeters are being tried in parallel: the team's `trial_branch` query (four blocks, tightened text conditions, all accepted, validated by precision on a random sample) and this branch (wide net, then a semantic filter). They are compared on the **same labelled families**.
+
+- **Labels:** the format of the team validation worksheets, `relevance_label` 1 / 0 / ? with `exclusion_reason`. The adjacent market is no longer a third label but a 0 with the reason `adjacent_hmd_vr`. `src/labels.py` reads this format and our first one (`label` 1 / 2 / 0) into the same table; families on which two files disagree are flagged, not averaged.
+- **Semantic filter:** on 201 labelled families the similarity to one description hardly separates smart glasses from the rest (AUC: `margin` 0.56, `sim_definition` 0.62, `bm25` 0.72); the negative description of 3D viewing glasses was the closest one for two thirds of the true smart-glasses families. A logistic regression on the Patent SBERT vectors, trained on the labels, reaches a cross-validated AUC of 0.83–0.85 (`07_classifier`). The embeddings and the scores of `05_semantic_filter` are kept as its features.
+- **Final sector** = rule A + to-review families whose `p_sector` reaches the threshold chosen in cross-validation.
+- **Head-mounted display of unstated type:** 0 with `adjacent_hmd_vr` (proposed to the group; earlier rows left empty or given 1 by default are read with this rule).
+- **Shared diagnostics:** `06_external_labels` prints the precision of each of our rules in the format of `precision_diagnostics` of `trial_branch` (per rule and exclusive), so the two queries are read in the same table.
+- **Open, for the group:** should rule A be filtered by the classifier as well? On the team's random sample the three core CPC codes (the same as ours) are 62% precise, 53% for the families they find alone.
+
 **Why IPC as well as CPC:** for **coverage**, not for infringement. CPC is used by the EPO and USPTO; IPC by almost every office, so some CN, JP and KR filings are only classified in IPC.
 
 YAML rather than JSON because the kick-off suggests `config/sector.yaml`; it also allows comments next to each code (its CPC title and why we chose it).
