@@ -14,6 +14,13 @@
 # v0.4: codes and words suggested by 04_expansion on PROD (lift / keyness
 # against all patents), marked "v0.4" below with their sector / all families.
 # No new core code came out: the additions widen rules B, C and review.
+# v0.5: 06_external_labels on a teammate's sample showed that a third of the
+# positives were missed by every rule: AR / HMD software whose abstracts say
+# "head-mounted display" or "augmented reality" but never "glasses", and that
+# carry no optical code. Group decision: cast a wide net (new rule r_hmd_text:
+# any family mentioning an hmd_term goes to review), then let the classifier
+# keep smart glasses (label 1) and set aside VR headsets and generic HMDs as an
+# adjacent market (label 2), see data/labels/LABELING_GUIDE.md.
 # Numbers in the comments: families 2000-2025 (PROD) and share of them whose
 # title/abstract mentions eyewear ("eye"), from code_diagnostics_PROD.csv.
 
@@ -237,7 +244,22 @@ selection:
     - "nose pad"
     - "temple arm"
 
-  # Removes known false positives (applied to the whole candidate pool)
+  # Rule W (v0.5) · wide net: a family whose title or abstract mentions one of
+  # these goes to review whatever its codes; the classifier then decides between
+  # smart glasses (1), adjacent HMD / VR market (2) and unrelated (0).
+  hmd_terms:
+    - "head-mounted"
+    - "head mounted"
+    - "head-worn"
+    - "head worn"
+    - "near-eye"
+    - "near-to-eye"
+    - " hmd"             # leading blank: word start (see keyword_condition)
+    - "augmented reality"
+    - "mixed reality"
+    - "see-through display"
+
+  # Removes known false positives (applied to the review tier only)
   exclude_terms:
     - "windshield"
     - "windscreen"

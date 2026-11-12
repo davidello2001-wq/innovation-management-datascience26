@@ -173,6 +173,11 @@ to_review  = (rule B or C or HUD/HMD review codes) and not A and not excluded  -
 - **One new keyword, " ar glasses"** (3.7% of sector abstracts, 2.0% of the doubtful ones), matched at word start so that "regular glasses" does not count. "VR glasses" and "head-mounted display" are not added: they are also frequent among the doubtful families (VR headsets, helmets) and are left to the semantic filter.
 - **Audio & hearing segment:** 5.7% of the sector families (997) mention an audio or hearing term; the list of segment terms gets "air conduction", "earphone", "audio", "sound"...
 
+**Update v0.5 (after checking the query on two labelled samples, `06_external_labels`).** Rule A is about 77% precise in both samples (mostly VR headsets and 3D shutter glasses among the errors); 26–41% of the doubtful families are smart glasses; and on a teammate's sample a third of the positives were missed by every rule, almost all **AR / head-mounted display software** that says "head-mounted display" instead of "glasses". Decision: **cast a wide net and filter**.
+
+- New rule **W**: any family whose title or abstract mentions a head-mounted display or AR term (`hmd_terms`) goes to review, whatever its codes.
+- Labels now have three values (`data/labels/LABELING_GUIDE.md`): **1** smart glasses (our sector), **2** adjacent market (closed VR headsets, helmet-mounted displays, generic HMD software), **0** not related. The classifier keeps 1 in the sector and sets 2 apart, so the deck can compare smart glasses with the adjacent HMD / VR market.
+
 **Why IPC as well as CPC:** for **coverage**, not for infringement. CPC is used by the EPO and USPTO; IPC by almost every office, so some CN, JP and KR filings are only classified in IPC.
 
 YAML rather than JSON because the kick-off suggests `config/sector.yaml`; it also allows comments next to each code (its CPC title and why we chose it).

@@ -93,12 +93,13 @@ def _within(families, other):
 
 # Rule A puts a family in the sector. Rules B and C were too noisy on PROD
 # (eyeballed samples, 02_candidate_pool): alone, they send the family to the
-# semantic filter, like the head-up / head-mounted display codes (r_review).
+# semantic filter, like the head-up / head-mounted display codes (r_review) and,
+# from v0.5, any mention of a head-mounted display or AR in the text (r_hmd_text).
 CORE_RULES = ("r_core_cpc", "r_core_ipc", "r_keyword")                       # A
-REVIEW_RULES = ("r_component_cpc", "r_component_ipc",                        # B
-                "r_eyewear_cpc", "r_eyewear_ipc",                            # C
-                "r_review")
-SECTOR_RULES = CORE_RULES + REVIEW_RULES[:-1]
+CONTEXT_RULES = ("r_component_cpc", "r_component_ipc",                       # B
+                 "r_eyewear_cpc", "r_eyewear_ipc")                           # C
+WIDE_RULES = ("r_review", "r_hmd_text")                                      # review codes, W
+REVIEW_RULES = CONTEXT_RULES + WIDE_RULES
 
 
 def rule_queries(db, cfg):
@@ -116,6 +117,7 @@ def rule_queries(db, cfg):
         "r_eyewear_ipc": _within(families_by_ipc(db, cfg, sel["eyewear_ipc"]), mentions_smart),
         "r_review": families_by_cpc(db, cfg, sel["review_cpc"]).union(
             families_by_ipc(db, cfg, sel["review_ipc"])),
+        "r_hmd_text": families_by_keywords(db, cfg, sel["hmd_terms"]),
         "r_excluded": families_by_keywords(db, cfg, sel["exclude_terms"]),
     }
 

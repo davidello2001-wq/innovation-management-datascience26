@@ -14,3 +14,6 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Hand labels are small and are the evidence of the validation: keep them in git
+!project/data/labels/*.csv
